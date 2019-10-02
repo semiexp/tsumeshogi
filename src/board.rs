@@ -38,7 +38,7 @@ impl Board {
     pub fn is_check(&self) -> bool {
         let king_pos = self.locate_second_king();
 
-        for i in 0..PIECE_TYPES {
+        for i in 0..(PIECE_TYPES * 2) {
             for j in 0..PIECE_MOVES_COUNT {
                 if PIECE_MOVES[i][j] == D(0, 0) {
                     break;
@@ -116,9 +116,32 @@ impl Board {
     }
     pub fn apply_move(&mut self, mv: Move) {
         // TODO: capturing pieces
-        let Move(src, dest) = mv;
-        self.set_sided_piece(dest, self.get_sided_piece(src));
+        let Move(src, dest, promotion) = mv;
+        if promotion {
+            self.set_sided_piece(dest, self.get_sided_piece(src).promote());
+        } else {
+            self.set_sided_piece(dest, self.get_sided_piece(src));
+        }
         self.set_sided_piece(src, EMPTY_CELL);
+    }
+    pub fn is_promotion_zone(pos: P, is_second: bool) -> bool {
+        if is_second {
+            pos.0 >= 7
+        } else {
+            pos.0 <= 2
+        }
+    }
+    pub fn has_further_move(pos: P, piece: Piece, is_second: bool) -> bool {
+        if piece == PIECE_PAWN || piece == PIECE_LANCE {
+            if (!is_second && pos.0 == 0) || (is_second && pos.0 == 8) {
+                return false;
+            }
+        } else if piece == PIECE_NIGHT {
+            if (!is_second && pos.0 <= 1) || (is_second && pos.0 >= 7) {
+                return false;
+            }
+        }
+        true
     }
     pub fn enumerate_moves(&self, pos: P) -> Vec<Move> {
         let mut ret = vec![];
@@ -141,28 +164,49 @@ impl Board {
             }
             let piece2 = self.get_sided_piece(pos2);
             if !((!is_second && piece2.is_first()) || (is_second && piece2.is_second())) {
-                ret.push(Move(pos, pos2));
+                if piece.has_promotion()
+                    && (Board::is_promotion_zone(pos, is_second)
+                        || Board::is_promotion_zone(pos2, is_second))
+                {
+                    ret.push(Move(pos, pos2, true));
+                }
+                if Board::has_further_move(pos, piece, is_second) {
+                    ret.push(Move(pos, pos2, false));
+                }
             }
         }
 
         if piece == PIECE_LANCE {
-            self.enumerate_ranging_moves(pos, D(-1, 0).flip_if(is_second), is_second, &mut ret);
+            self.enumerate_ranging_moves(
+                pos,
+                D(-1, 0).flip_if(is_second),
+                is_second,
+                piece,
+                &mut ret,
+            );
         }
         if piece.capture() == PIECE_BISHOP {
-            self.enumerate_ranging_moves(pos, D(-1, -1), is_second, &mut ret);
-            self.enumerate_ranging_moves(pos, D(-1, 1), is_second, &mut ret);
-            self.enumerate_ranging_moves(pos, D(1, -1), is_second, &mut ret);
-            self.enumerate_ranging_moves(pos, D(1, 1), is_second, &mut ret);
+            self.enumerate_ranging_moves(pos, D(-1, -1), is_second, piece, &mut ret);
+            self.enumerate_ranging_moves(pos, D(-1, 1), is_second, piece, &mut ret);
+            self.enumerate_ranging_moves(pos, D(1, -1), is_second, piece, &mut ret);
+            self.enumerate_ranging_moves(pos, D(1, 1), is_second, piece, &mut ret);
         }
         if piece.capture() == PIECE_ROOK {
-            self.enumerate_ranging_moves(pos, D(-1, 0), is_second, &mut ret);
-            self.enumerate_ranging_moves(pos, D(0, -1), is_second, &mut ret);
-            self.enumerate_ranging_moves(pos, D(0, 1), is_second, &mut ret);
-            self.enumerate_ranging_moves(pos, D(1, 0), is_second, &mut ret);
+            self.enumerate_ranging_moves(pos, D(-1, 0), is_second, piece, &mut ret);
+            self.enumerate_ranging_moves(pos, D(0, -1), is_second, piece, &mut ret);
+            self.enumerate_ranging_moves(pos, D(0, 1), is_second, piece, &mut ret);
+            self.enumerate_ranging_moves(pos, D(1, 0), is_second, piece, &mut ret);
         }
         ret
     }
-    fn enumerate_ranging_moves(&self, pos: P, dir: D, is_second: bool, dest: &mut Vec<Move>) {
+    fn enumerate_ranging_moves(
+        &self,
+        pos: P,
+        dir: D,
+        is_second: bool,
+        piece: Piece,
+        dest: &mut Vec<Move>,
+    ) {
         for i in 1..BOARD_SIZE {
             let pos2 = pos + dir * i;
             if !self.is_inside_board(pos2) {
@@ -172,7 +216,15 @@ impl Board {
             if (!is_second && piece2.is_first()) || (is_second && piece2.is_second()) {
                 break;
             }
-            dest.push(Move(pos, pos2));
+            if piece.has_promotion()
+                && (Board::is_promotion_zone(pos, is_second)
+                    || Board::is_promotion_zone(pos2, is_second))
+            {
+                dest.push(Move(pos, pos2, true));
+            }
+            if Board::has_further_move(pos, piece, is_second) {
+                dest.push(Move(pos, pos2, false));
+            }
         }
     }
     pub fn enumerate_check(&self) -> Vec<Move> {
@@ -257,7 +309,7 @@ mod tests {
 
         let checks = board.enumerate_check();
         assert_eq!(checks.len(), 2);
-        assert!(checks.contains(&Move(P(2, 5), P(1, 4))));
-        assert!(checks.contains(&Move(P(2, 5), P(1, 5))));
+        assert!(checks.contains(&Move(P(2, 5), P(1, 4), false)));
+        assert!(checks.contains(&Move(P(2, 5), P(1, 5), false)));
     }
 }
