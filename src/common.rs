@@ -221,7 +221,7 @@ impl Piece {
 
 pub const PIECE_PAWN: Piece = Piece(0);
 pub const PIECE_LANCE: Piece = Piece(1);
-pub const PIECE_NIGHT: Piece = Piece(2);
+pub const PIECE_KNIGHT: Piece = Piece(2);
 pub const PIECE_SILVER: Piece = Piece(3);
 pub const PIECE_GOLD: Piece = Piece(4);
 pub const PIECE_BISHOP: Piece = Piece(5);

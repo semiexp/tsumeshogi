@@ -123,10 +123,10 @@ mod tests {
             board.set_sided_piece(P(0, 4), PIECE_KING.as_second());
             board.set_sided_piece(P(0, 3), PIECE_PAWN.as_second());
             board.set_sided_piece(P(0, 5), PIECE_PAWN.as_second());
-            board.set_sided_piece(P(1, 3), PIECE_NIGHT.as_second());
-            board.set_sided_piece(P(1, 4), PIECE_NIGHT.as_second());
-            board.set_sided_piece(P(1, 5), PIECE_NIGHT.as_second());
-            board.set_sided_piece(P(4, 6), PIECE_NIGHT.as_first());
+            board.set_sided_piece(P(1, 3), PIECE_KNIGHT.as_second());
+            board.set_sided_piece(P(1, 4), PIECE_KNIGHT.as_second());
+            board.set_sided_piece(P(1, 5), PIECE_KNIGHT.as_second());
+            board.set_sided_piece(P(4, 6), PIECE_KNIGHT.as_first());
 
             let sol = solve(&board, 1);
             assert!(sol.is_some() && sol.unwrap().len() == 1);

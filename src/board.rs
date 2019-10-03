@@ -177,7 +177,7 @@ impl Board {
             if (!is_second && pos.0 == 0) || (is_second && pos.0 == 8) {
                 return false;
             }
-        } else if piece == PIECE_NIGHT {
+        } else if piece == PIECE_KNIGHT {
             if (!is_second && pos.0 <= 1) || (is_second && pos.0 >= 7) {
                 return false;
             }
