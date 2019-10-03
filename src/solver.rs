@@ -5,7 +5,12 @@ pub fn solve(board: &Board, max_depth: i32) -> Option<Vec<Move>> {
     assert!(max_depth % 2 == 1);
 
     let mut steps = vec![];
-    solve_first(board, max_depth, &mut steps)
+    let mut res = solve_first(board, max_depth, &mut steps);
+    match &mut res {
+        Some(x) => x.reverse(),
+        None => (),
+    };
+    res
 }
 
 fn solve_first(board: &Board, max_depth: i32, steps: &mut Vec<Move>) -> Option<Vec<Move>> {
@@ -101,6 +106,24 @@ mod tests {
             board.set_sided_piece(P(2, 7), PIECE_GOLD.as_first());
 
             let sol = solve(&board, 3);
+            assert!(sol.is_some() && sol.unwrap().len() == 3);
+        }
+        {
+            let mut board = Board::new();
+            board.set_sided_piece(P(7, 0), PIECE_KING.as_second());
+            board.set_sided_piece(P(0, 1), PIECE_ROOK.as_first());
+            board.set_sided_piece(P(7, 2), PIECE_GOLD.as_first());
+
+            let sol = solve(&board, 1);
+            assert!(sol.is_some() && sol.unwrap().len() == 1);
+        }
+        {
+            let mut board = Board::new();
+            board.set_sided_piece(P(7, 0), PIECE_KING.as_second());
+            board.set_sided_piece(P(0, 1), PIECE_ROOK.as_first());
+            board.set_sided_piece(P(7, 2), PIECE_SILVER.as_first());
+
+            let sol = solve(&board, 5);
             assert!(sol.is_some() && sol.unwrap().len() == 3);
         }
     }

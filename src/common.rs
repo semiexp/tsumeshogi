@@ -229,7 +229,11 @@ pub const PIECE_ROOK: Piece = Piece(6);
 pub const PIECE_KING: Piece = Piece(7);
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub struct Move(pub P, pub P, pub bool);
+pub enum Move {
+    NoPromotion(P, P),
+    Promotion(P, P),
+    FromHand(P, SidedPiece),
+}
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct SidedPiece(pub i8);

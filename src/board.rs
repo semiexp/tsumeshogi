@@ -6,12 +6,16 @@ use std::ops::{Index, IndexMut};
 #[derive(Clone)]
 pub struct Board {
     pieces: [SidedPiece; BOARD_CELLS as usize],
+    hand_first: [i8; PIECE_TYPES],
+    hand_second: [i8; PIECE_TYPES],
 }
 
 impl Board {
     pub fn new() -> Board {
         Board {
             pieces: [EMPTY_CELL; BOARD_CELLS as usize],
+            hand_first: [0; PIECE_TYPES],
+            hand_second: [0; PIECE_TYPES],
         }
     }
     pub fn is_inside_board(&self, pos: P) -> bool {
@@ -24,6 +28,18 @@ impl Board {
     pub fn set_sided_piece(&mut self, pos: P, piece: SidedPiece) {
         assert!(self.is_inside_board(pos));
         self.pieces[(pos.0 * 9 + pos.1) as usize] = piece;
+    }
+    pub fn set_first_hand(&mut self, piece: Piece, n: i8) {
+        self.hand_first[piece.0 as usize] = n;
+    }
+    pub fn get_first_hand(&mut self, piece: Piece) -> i8 {
+        self.hand_first[piece.0 as usize]
+    }
+    pub fn set_second_hand(&mut self, piece: Piece, n: i8) {
+        self.hand_second[piece.0 as usize] = n;
+    }
+    pub fn get_second_hand(&mut self, piece: Piece) -> i8 {
+        self.hand_second[piece.0 as usize]
     }
     pub fn locate_second_king(&self) -> P {
         for y in 0..BOARD_SIZE {
@@ -116,13 +132,24 @@ impl Board {
     }
     pub fn apply_move(&mut self, mv: Move) {
         // TODO: capturing pieces
-        let Move(src, dest, promotion) = mv;
-        if promotion {
-            self.set_sided_piece(dest, self.get_sided_piece(src).promote());
-        } else {
-            self.set_sided_piece(dest, self.get_sided_piece(src));
+        match mv {
+            Move::NoPromotion(src, dest) => {
+                self.set_sided_piece(dest, self.get_sided_piece(src));
+                self.set_sided_piece(src, EMPTY_CELL);
+            }
+            Move::Promotion(src, dest) => {
+                self.set_sided_piece(dest, self.get_sided_piece(src).promote());
+                self.set_sided_piece(src, EMPTY_CELL);
+            }
+            Move::FromHand(pos, piece) => {
+                if piece.is_first() {
+                    self.hand_first[piece.0 as usize] -= 1;
+                } else {
+                    self.hand_second[piece.to_piece().0 as usize] -= 1;
+                }
+                self.set_sided_piece(pos, piece);
+            }
         }
-        self.set_sided_piece(src, EMPTY_CELL);
     }
     pub fn is_promotion_zone(pos: P, is_second: bool) -> bool {
         if is_second {
@@ -168,10 +195,10 @@ impl Board {
                     && (Board::is_promotion_zone(pos, is_second)
                         || Board::is_promotion_zone(pos2, is_second))
                 {
-                    ret.push(Move(pos, pos2, true));
+                    ret.push(Move::Promotion(pos, pos2));
                 }
                 if Board::has_further_move(pos, piece, is_second) {
-                    ret.push(Move(pos, pos2, false));
+                    ret.push(Move::NoPromotion(pos, pos2));
                 }
             }
         }
@@ -220,10 +247,13 @@ impl Board {
                 && (Board::is_promotion_zone(pos, is_second)
                     || Board::is_promotion_zone(pos2, is_second))
             {
-                dest.push(Move(pos, pos2, true));
+                dest.push(Move::Promotion(pos, pos2));
             }
             if Board::has_further_move(pos, piece, is_second) {
-                dest.push(Move(pos, pos2, false));
+                dest.push(Move::NoPromotion(pos, pos2));
+            }
+            if !piece2.is_empty() {
+                break;
             }
         }
     }
@@ -248,7 +278,103 @@ impl Board {
                 }
             }
         }
+        let king_pos = self.locate_second_king();
+        for i in 0..PIECE_TYPES {
+            if self.hand_first[i] == 0 {
+                continue;
+            }
+            for j in 0..PIECE_MOVES_COUNT {
+                if PIECE_MOVES[i][j] == D(0, 0) {
+                    break;
+                }
+                let pos = king_pos + PIECE_MOVES[i][j].flip();
+                if !self.is_inside_board(pos) {
+                    continue;
+                }
+                if self.get_sided_piece(pos).is_empty() {
+                    ret.push(Move::FromHand(pos, SidedPiece(i as i8)));
+                }
+            }
+        }
+        if self.hand_first[PIECE_LANCE.0 as usize] != 0 {
+            self.enumerate_check_from_hand_ranging(
+                king_pos,
+                D(1, 0),
+                PIECE_LANCE.as_first(),
+                &mut ret,
+            );
+        }
+        if self.hand_first[PIECE_BISHOP.0 as usize] != 0 {
+            self.enumerate_check_from_hand_ranging(
+                king_pos,
+                D(-1, -1),
+                PIECE_BISHOP.as_first(),
+                &mut ret,
+            );
+            self.enumerate_check_from_hand_ranging(
+                king_pos,
+                D(-1, 1),
+                PIECE_BISHOP.as_first(),
+                &mut ret,
+            );
+            self.enumerate_check_from_hand_ranging(
+                king_pos,
+                D(1, -1),
+                PIECE_BISHOP.as_first(),
+                &mut ret,
+            );
+            self.enumerate_check_from_hand_ranging(
+                king_pos,
+                D(1, 1),
+                PIECE_BISHOP.as_first(),
+                &mut ret,
+            );
+        }
+        if self.hand_first[PIECE_ROOK.0 as usize] != 0 {
+            self.enumerate_check_from_hand_ranging(
+                king_pos,
+                D(-1, 0),
+                PIECE_ROOK.as_first(),
+                &mut ret,
+            );
+            self.enumerate_check_from_hand_ranging(
+                king_pos,
+                D(0, -1),
+                PIECE_ROOK.as_first(),
+                &mut ret,
+            );
+            self.enumerate_check_from_hand_ranging(
+                king_pos,
+                D(0, 1),
+                PIECE_ROOK.as_first(),
+                &mut ret,
+            );
+            self.enumerate_check_from_hand_ranging(
+                king_pos,
+                D(1, 0),
+                PIECE_ROOK.as_first(),
+                &mut ret,
+            );
+        }
         ret
+    }
+    pub fn enumerate_check_from_hand_ranging(
+        &self,
+        pos: P,
+        dir: D,
+        piece: SidedPiece,
+        dest: &mut Vec<Move>,
+    ) {
+        for i in 1..BOARD_SIZE {
+            let pos2 = pos + dir * i;
+            if !self.is_inside_board(pos2) {
+                break;
+            }
+            if !self.get_sided_piece(pos2).is_empty() {
+                break;
+            }
+            dest.push(Move::FromHand(pos2, piece));
+        }
     }
     pub fn enumerate_check_avoidance(&self) -> Vec<Move> {
         // TODO: more efficient algorithm
@@ -309,7 +435,32 @@ mod tests {
 
         let checks = board.enumerate_check();
         assert_eq!(checks.len(), 2);
-        assert!(checks.contains(&Move(P(2, 5), P(1, 4), false)));
-        assert!(checks.contains(&Move(P(2, 5), P(1, 5), false)));
+        assert!(checks.contains(&Move::NoPromotion(P(2, 5), P(1, 4))));
+        assert!(checks.contains(&Move::NoPromotion(P(2, 5), P(1, 5))));
+    }
+
+    #[test]
+    fn test_enumerate_check_ranging() {
+        {
+            // lance and promotion
+            let mut board = Board::new();
+            board.set_sided_piece(P(1, 1), PIECE_KING.as_second());
+            board.set_sided_piece(P(8, 0), PIECE_LANCE.as_first());
+
+            let checks = board.enumerate_check();
+            assert_eq!(checks.len(), 2);
+            assert!(checks.contains(&Move::Promotion(P(8, 0), P(2, 0))));
+            assert!(checks.contains(&Move::Promotion(P(8, 0), P(1, 0))));
+        }
+        {
+            // bishop
+            let mut board = Board::new();
+            board.set_sided_piece(P(2, 2), PIECE_KING.as_second());
+            board.set_sided_piece(P(8, 2), PIECE_BISHOP.as_first());
+
+            let checks = board.enumerate_check();
+            assert_eq!(checks.len(), 1);
+            assert!(checks.contains(&Move::NoPromotion(P(8, 2), P(5, 5))));
+        }
     }
 }
