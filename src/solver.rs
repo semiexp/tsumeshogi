@@ -1,16 +1,48 @@
 use crate::board::Board;
 use crate::common::*;
+use crate::P;
 
 pub fn solve(board: &Board, max_depth: i32) -> Option<Vec<Move>> {
     assert!(max_depth % 2 == 1);
 
+    let mut board = board.clone();
+
+    let mut piece_counts = [18, 4, 4, 4, 4, 2, 2];
+    for i in 0..(PIECE_TYPES - 1) {
+        piece_counts[i] -= board.get_first_hand(Piece(i as i8));
+    }
+    for y in 0..BOARD_SIZE {
+        for x in 0..BOARD_SIZE {
+            let piece = board.get_sided_piece(P(y, x));
+            if !piece.is_empty() {
+                let piece = piece.to_piece().capture();
+                if piece != PIECE_KING {
+                    piece_counts[piece.0 as usize] -= 1;
+                }
+            }
+        }
+    }
+    for i in 0..(PIECE_TYPES - 1) {
+        board.set_second_hand(Piece(i as i8), piece_counts[i]);
+    }
+
     let mut steps = vec![];
-    let mut res = solve_first(board, max_depth, &mut steps);
+    let mut res = solve_first(&board, max_depth, &mut steps);
     match &mut res {
         Some(x) => x.reverse(),
         None => (),
     };
     res
+}
+
+pub fn intermediate_boards(board: &Board, steps: &Vec<Move>) -> Vec<Board> {
+    let mut board = board.clone();
+    let mut ret = vec![board.clone()];
+    for &mv in steps {
+        board.apply_move(mv);
+        ret.push(board.clone());
+    }
+    ret
 }
 
 fn solve_first(board: &Board, max_depth: i32, steps: &mut Vec<Move>) -> Option<Vec<Move>> {

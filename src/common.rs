@@ -227,6 +227,8 @@ pub const PIECE_GOLD: Piece = Piece(4);
 pub const PIECE_BISHOP: Piece = Piece(5);
 pub const PIECE_ROOK: Piece = Piece(6);
 pub const PIECE_KING: Piece = Piece(7);
+pub const PIECE_PROMOTED_BISHOP: Piece = Piece(13);
+pub const PIECE_PROMOTED_ROOK: Piece = Piece(14);
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum Move {

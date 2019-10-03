@@ -32,13 +32,13 @@ impl Board {
     pub fn set_first_hand(&mut self, piece: Piece, n: i8) {
         self.hand_first[piece.0 as usize] = n;
     }
-    pub fn get_first_hand(&mut self, piece: Piece) -> i8 {
+    pub fn get_first_hand(&self, piece: Piece) -> i8 {
         self.hand_first[piece.0 as usize]
     }
     pub fn set_second_hand(&mut self, piece: Piece, n: i8) {
         self.hand_second[piece.0 as usize] = n;
     }
-    pub fn get_second_hand(&mut self, piece: Piece) -> i8 {
+    pub fn get_second_hand(&self, piece: Piece) -> i8 {
         self.hand_second[piece.0 as usize]
     }
     pub fn locate_second_king(&self) -> P {
@@ -393,6 +393,60 @@ impl Board {
                     board.apply_move(mv);
                     if !board.is_check() {
                         ret.push(mv);
+                    }
+                }
+            }
+        }
+        let king_pos = self.locate_second_king();
+        let dirs = [
+            D(-1, -1),
+            D(-1, 0),
+            D(-1, 1),
+            D(0, -1),
+            D(0, 1),
+            D(1, -1),
+            D(1, 0),
+            D(1, 1),
+        ];
+        for &d in &dirs {
+            let mut dist = -1;
+            for i in 1..BOARD_SIZE {
+                let pos = king_pos + d * i;
+                if !self.is_inside_board(pos) {
+                    break;
+                }
+                let piece = self.get_sided_piece(pos);
+                if piece.is_empty() {
+                    continue;
+                }
+                if piece.is_second() {
+                    break;
+                }
+                if piece.is_first() {
+                    let isok = match piece.to_piece() {
+                        PIECE_LANCE => d == D(1, 0),
+                        PIECE_BISHOP | PIECE_PROMOTED_BISHOP => d.0 != 0 && d.1 != 0,
+                        PIECE_ROOK | PIECE_PROMOTED_ROOK => d.0 == 0 || d.0 == 1,
+                        _ => false,
+                    };
+                    if isok {
+                        dist = i;
+                    }
+                    break;
+                }
+            }
+            if dist != -1 {
+                for i in 1..dist {
+                    for p in 0..PIECE_TYPES {
+                        if self.hand_second[p] != 0 {
+                            let move_cand =
+                                Move::FromHand(king_pos + d * i, Piece(p as i8).as_second());
+                            let mut board = self.clone();
+                            board.apply_move(move_cand);
+                            if !board.is_check() {
+                                ret.push(move_cand);
+                            }
+                        }
                     }
                 }
             }
