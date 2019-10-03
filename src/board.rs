@@ -134,11 +134,25 @@ impl Board {
         // TODO: capturing pieces
         match mv {
             Move::NoPromotion(src, dest) => {
-                self.set_sided_piece(dest, self.get_sided_piece(src));
+                let p_src = self.get_sided_piece(src);
+                let p_dest = self.get_sided_piece(dest);
+                if p_src.is_first() && p_dest.is_second() {
+                    self.hand_first[p_dest.to_piece().capture().0 as usize] += 1;
+                } else if p_src.is_second() && p_dest.is_first() {
+                    self.hand_second[p_dest.to_piece().capture().0 as usize] += 1;
+                }
+                self.set_sided_piece(dest, p_src);
                 self.set_sided_piece(src, EMPTY_CELL);
             }
             Move::Promotion(src, dest) => {
-                self.set_sided_piece(dest, self.get_sided_piece(src).promote());
+                let p_src = self.get_sided_piece(src);
+                let p_dest = self.get_sided_piece(dest);
+                if p_src.is_first() && p_dest.is_second() {
+                    self.hand_first[p_dest.to_piece().capture().0 as usize] += 1;
+                } else if p_src.is_second() && p_dest.is_first() {
+                    self.hand_second[p_dest.to_piece().capture().0 as usize] += 1;
+                }
+                self.set_sided_piece(dest, p_src.promote());
                 self.set_sided_piece(src, EMPTY_CELL);
             }
             Move::FromHand(pos, piece) => {
